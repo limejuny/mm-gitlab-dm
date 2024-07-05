@@ -1,4 +1,4 @@
-module github.com/eggmoid/mm-gitlab-dm
+module github.com/limejuny/mm-gitlab-dm
 
 go 1.18
 

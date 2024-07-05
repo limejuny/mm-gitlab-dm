@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/mattermost/mattermost-server/v5/plugin"
-	"github.com/pkg/errors"
+	// "github.com/pkg/errors"
 	"go.uber.org/atomic"
 )
 
@@ -33,9 +33,9 @@ func (c *Configuration) ProcessConfiguration() error {
 }
 
 func (c *Configuration) IsValid() error {
-	if c.Secret == "" {
-		return errors.New("please provide the Webhook Secret")
-	}
+	// if c.Secret == "" {
+	// 	return errors.New("please provide the Webhook Secret")
+	// }
 
 	return nil
 }
