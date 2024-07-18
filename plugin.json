@@ -1,7 +1,7 @@
 {
   "id": "com.github.limejuny.mm-gitlab-dm",
   "name": "Mattermost Plugin Gitlab DM",
-  "version": "240705.1",
+  "version": "240719.1",
   "server": {
     "executable": "plugin"
   }
