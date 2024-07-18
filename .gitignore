@@ -32,3 +32,5 @@ go.work
 
 plugin
 plugin.tar.gz
+
+const.go.cred
