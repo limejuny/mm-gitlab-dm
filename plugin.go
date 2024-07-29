@@ -10,6 +10,7 @@ import (
 	"github.com/limejuny/mm-gitlab-dm/config"
 	"github.com/mattermost/mattermost-server/v5/model"
 	"github.com/mattermost/mattermost-server/v5/plugin"
+	fn "github.com/thoas/go-funk"
 )
 
 type dict map[string]interface{}
@@ -100,13 +101,21 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 
 		payload := name + ` (` + author + `) ` + action + ` merge request ` + `[` + title + `](` + url + `) in [` + namespace + ` / ` + project + `](` + project_url + `)`
 
+		var usernames []string
 		if _, ok := data["assignees"]; ok {
 			for _, a := range data["assignees"].([]interface{}) {
-				username := a.(map[string]interface{})["username"].(string)
-
-				createPost(client, username, payload, title, url, description)
+				usernames = append(usernames, a.(map[string]interface{})["username"].(string))
 			}
 		}
+		if _, ok := data["reviewers"]; ok {
+			for _, a := range data["reviewers"].([]interface{}) {
+				usernames = append(usernames, a.(map[string]interface{})["username"].(string))
+			}
+		}
+
+		fn.ForEach(fn.Uniq(usernames), func(username string) {
+			createPost(client, username, payload, title, url, description)
+		})
 	} else if data.s("object_kind") == "note" {
 		author := data.d("user").s("username")
 		name := data.d("user").s("name")
