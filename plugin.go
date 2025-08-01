@@ -4,13 +4,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/limejuny/mm-gitlab-dm/config"
-	"github.com/mattermost/mattermost-server/v5/model"
-	"github.com/mattermost/mattermost-server/v5/plugin"
-	fn "github.com/thoas/go-funk"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/samber/lo"
 )
 
 type dict map[string]interface{}
@@ -113,7 +112,7 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 			}
 		}
 
-		fn.ForEach(fn.Uniq(usernames), func(username string) {
+		lo.ForEach(lo.Uniq(usernames), func(username string, _ int) {
 			createPost(client, username, payload, title, url, description)
 		})
 	} else if data.s("object_kind") == "note" {

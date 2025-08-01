@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	fn "github.com/thoas/go-funk"
-	"github.com/xanzy/go-gitlab"
+	"github.com/samber/lo"
+	"gitlab.com/gitlab-org/api/client-go"
 )
 
 func retrieveUsernames(id, merge_request_iid int) ([]string, error) {
@@ -23,7 +23,7 @@ func retrieveUsernames(id, merge_request_iid int) ([]string, error) {
 		return nil, err
 	}
 
-	return fn.Uniq(fn.Map(notes, func(note *gitlab.Note) string {
+	return lo.Uniq(lo.Map(notes, func(note *gitlab.Note, _ int) string {
 		return note.Author.Username
-	})).([]string), nil
+	})), nil
 }

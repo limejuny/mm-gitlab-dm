@@ -3,9 +3,7 @@ package config
 import (
 	"strings"
 
-	"github.com/mattermost/mattermost-server/v5/plugin"
-	// "github.com/pkg/errors"
-	"go.uber.org/atomic"
+	"github.com/mattermost/mattermost/server/public/plugin"
 )
 
 var (
