@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/mattermost/mattermost/server/public/plugin"
+	"go.uber.org/atomic"
 )
 
 var (

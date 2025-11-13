@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/limejuny/mm-gitlab-dm/config"
@@ -12,10 +14,10 @@ import (
 	"github.com/samber/lo"
 )
 
-type dict map[string]interface{}
+type dict map[string]any
 
 func (d dict) d(k string) dict {
-	return d[k].(map[string]interface{})
+	return d[k].(map[string]any)
 }
 
 func (d dict) s(k string) string {
@@ -72,7 +74,7 @@ func (p *Plugin) OnConfigurationChange() error {
 }
 
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return
 	}
@@ -148,15 +150,17 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 }
 
 func createPost(client *model.Client4, username, message, title, title_link, text string) {
-	user, res := client.GetUserByUsername(username, "")
+	ctx := context.Background()
+
+	user, res, err := client.GetUserByUsername(ctx, username, "")
 	if res.StatusCode >= 400 {
-		fmt.Println(res.Error.Message)
+		fmt.Println(err.Error())
 		return
 	}
 
-	channel, res := client.CreateDirectChannel(MMBOTID, user.Id)
+	channel, res, err := client.CreateDirectChannel(ctx, MMBOTID, user.Id)
 	if res.StatusCode >= 400 {
-		fmt.Println(res.Error.Message)
+		fmt.Println(err.Error())
 		return
 	}
 
@@ -175,7 +179,7 @@ func createPost(client *model.Client4, username, message, title, title_link, tex
 
 	model.ParseSlackAttachment(post, []*model.SlackAttachment{attachment})
 
-	client.CreatePost(post)
+	client.CreatePost(ctx, post)
 }
 
 func main() {
