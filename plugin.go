@@ -4,13 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/limejuny/mm-gitlab-dm/config"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/pkg/errors"
 	"github.com/samber/lo"
 )
 
@@ -104,16 +104,17 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 
 		var usernames []string
 		if _, ok := data["assignees"]; ok {
-			for _, a := range data["assignees"].([]interface{}) {
-				usernames = append(usernames, a.(map[string]interface{})["username"].(string))
+			for _, a := range data["assignees"].([]any) {
+				usernames = append(usernames, a.(map[string]any)["username"].(string))
 			}
 		}
 		if _, ok := data["reviewers"]; ok {
-			for _, a := range data["reviewers"].([]interface{}) {
-				usernames = append(usernames, a.(map[string]interface{})["username"].(string))
+			for _, a := range data["reviewers"].([]any) {
+				usernames = append(usernames, a.(map[string]any)["username"].(string))
 			}
 		}
 
+		config.Mattermost.LogDebug("merge_request:: retrieveUsernames()", "usernames", usernames ,"error", errors.WithStack(err), "payload", data)
 		lo.ForEach(lo.Uniq(usernames), func(username string, _ int) {
 			createPost(client, username, payload, title, url, description)
 		})
@@ -134,6 +135,7 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 			payload := name + ` (` + author + `) add comment to [` + title + `](` + url + `) in [` + namespace + ` / ` + project + `](` + project_url + `)`
 
 			usernames, err := retrieveUsernames(project_id, data.d("merge_request").i("iid"))
+			config.Mattermost.LogDebug("notes:: retrieveUsernames()", "usernames", usernames ,"error", errors.WithStack(err), "payload", data)
 			if err == nil && len(usernames) > 0 {
 				for _, username := range usernames {
 					if username != author {
@@ -154,13 +156,13 @@ func createPost(client *model.Client4, username, message, title, title_link, tex
 
 	user, res, err := client.GetUserByUsername(ctx, username, "")
 	if res.StatusCode >= 400 {
-		fmt.Println(err.Error())
+		config.Mattermost.LogError("err:: GetUserByUsername", "error", errors.WithStack(err), "user", user, "res", res)
 		return
 	}
 
 	channel, res, err := client.CreateDirectChannel(ctx, MMBOTID, user.Id)
 	if res.StatusCode >= 400 {
-		fmt.Println(err.Error())
+		config.Mattermost.LogError("err:: CreateDirectChannel", "error", errors.WithStack(err), "channel", channel, "res", res)
 		return
 	}
 
