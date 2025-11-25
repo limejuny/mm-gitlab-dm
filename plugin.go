@@ -152,17 +152,19 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 }
 
 func createPost(client *model.Client4, username, message, title, title_link, text string) {
+	config.Mattermost.LogError("[G-20] start createPost", "username", username, "message", message, "title", title, "title_link", title_link, "text", text)
 	ctx := context.Background()
+	config.Mattermost.LogError("[G-20] created ctx")
 
 	user, res, err := client.GetUserByUsername(ctx, username, "")
-	if res.StatusCode >= 400 {
-		config.Mattermost.LogError("err:: GetUserByUsername", "error", errors.WithStack(err), "user", user, "res", res)
+	if err != nil || res.StatusCode >= 400 {
+		config.Mattermost.LogError("[G-2] err:: GetUserByUsername", "error", errors.WithStack(err), "user", user, "res", res)
 		return
 	}
 
 	channel, res, err := client.CreateDirectChannel(ctx, MMBOTID, user.Id)
-	if res.StatusCode >= 400 {
-		config.Mattermost.LogError("err:: CreateDirectChannel", "error", errors.WithStack(err), "channel", channel, "res", res)
+	if err != nil || res.StatusCode >= 400 {
+		config.Mattermost.LogError("[G-3] err:: CreateDirectChannel", "error", errors.WithStack(err), "channel", channel, "res", res)
 		return
 	}
 
