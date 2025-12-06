@@ -1,22 +1,23 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/limejuny/mm-gitlab-dm/config"
-	"github.com/mattermost/mattermost-server/v5/model"
-	"github.com/mattermost/mattermost-server/v5/plugin"
-	fn "github.com/thoas/go-funk"
+	"github.com/mattermost/mattermost/server/public/model"
+	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/pkg/errors"
+	"github.com/samber/lo"
 )
 
-type dict map[string]interface{}
+type dict map[string]any
 
 func (d dict) d(k string) dict {
-	return d[k].(map[string]interface{})
+	return d[k].(map[string]any)
 }
 
 func (d dict) s(k string) string {
@@ -73,7 +74,7 @@ func (p *Plugin) OnConfigurationChange() error {
 }
 
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return
 	}
@@ -103,17 +104,18 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 
 		var usernames []string
 		if _, ok := data["assignees"]; ok {
-			for _, a := range data["assignees"].([]interface{}) {
-				usernames = append(usernames, a.(map[string]interface{})["username"].(string))
+			for _, a := range data["assignees"].([]any) {
+				usernames = append(usernames, a.(map[string]any)["username"].(string))
 			}
 		}
 		if _, ok := data["reviewers"]; ok {
-			for _, a := range data["reviewers"].([]interface{}) {
-				usernames = append(usernames, a.(map[string]interface{})["username"].(string))
+			for _, a := range data["reviewers"].([]any) {
+				usernames = append(usernames, a.(map[string]any)["username"].(string))
 			}
 		}
 
-		fn.ForEach(fn.Uniq(usernames), func(username string) {
+		config.Mattermost.LogDebug("merge_request:: retrieveUsernames()", "usernames", usernames ,"error", errors.WithStack(err), "payload", data)
+		lo.ForEach(lo.Uniq(usernames), func(username string, _ int) {
 			createPost(client, username, payload, title, url, description)
 		})
 	} else if data.s("object_kind") == "note" {
@@ -133,6 +135,7 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 			payload := name + ` (` + author + `) add comment to [` + title + `](` + url + `) in [` + namespace + ` / ` + project + `](` + project_url + `)`
 
 			usernames, err := retrieveUsernames(project_id, data.d("merge_request").i("iid"))
+			config.Mattermost.LogDebug("notes:: retrieveUsernames()", "usernames", usernames ,"error", errors.WithStack(err), "payload", data)
 			if err == nil && len(usernames) > 0 {
 				for _, username := range usernames {
 					if username != author {
@@ -149,15 +152,19 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 }
 
 func createPost(client *model.Client4, username, message, title, title_link, text string) {
-	user, res := client.GetUserByUsername(username, "")
-	if res.StatusCode >= 400 {
-		fmt.Println(res.Error.Message)
+	config.Mattermost.LogError("[G-20] start createPost", "username", username, "message", message, "title", title, "title_link", title_link, "text", text)
+	ctx := context.Background()
+	config.Mattermost.LogError("[G-20] created ctx")
+
+	user, res, err := client.GetUserByUsername(ctx, username, "")
+	if err != nil || res.StatusCode >= 400 {
+		config.Mattermost.LogError("[G-2] err:: GetUserByUsername", "error", errors.WithStack(err), "user", user, "res", res)
 		return
 	}
 
-	channel, res := client.CreateDirectChannel(MMBOTID, user.Id)
-	if res.StatusCode >= 400 {
-		fmt.Println(res.Error.Message)
+	channel, res, err := client.CreateDirectChannel(ctx, MMBOTID, user.Id)
+	if err != nil || res.StatusCode >= 400 {
+		config.Mattermost.LogError("[G-3] err:: CreateDirectChannel", "error", errors.WithStack(err), "channel", channel, "res", res)
 		return
 	}
 
@@ -176,7 +183,7 @@ func createPost(client *model.Client4, username, message, title, title_link, tex
 
 	model.ParseSlackAttachment(post, []*model.SlackAttachment{attachment})
 
-	client.CreatePost(post)
+	client.CreatePost(ctx, post)
 }
 
 func main() {
